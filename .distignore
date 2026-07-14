@@ -1,0 +1,18 @@
+# Excluded from the installable plugin zip. Dev tooling only — none of it runs on
+# a user's site, and WordPress.org rejects a package that carries build config.
+/.git
+/.github
+/.gitignore
+/.distignore
+/scripts
+/node_modules
+/vendor
+/composer.json
+/composer.lock
+/package.json
+/package-lock.json
+/phpcs.xml.dist
+/README.md
+*.zip
+*.log
+.DS_Store

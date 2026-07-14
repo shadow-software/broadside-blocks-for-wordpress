@@ -1,0 +1,68 @@
+name: Release
+
+# The artefact is built by CI, from the tag, by the same script a developer runs
+# locally — never assembled by hand. It is verified BEFORE it is published, so a
+# broken zip never becomes a release.
+
+on:
+  push:
+    tags: [ 'v*' ]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build, verify and publish the plugin zip
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      # A tag can be pushed at any commit — including one CI never saw. The
+      # release must stand on its own evidence.
+      - name: The tag matches the plugin version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          ver=$(grep -oP '^\s*\*\s*Version:\s*\K[0-9.]+' broadside-blocks.php)
+          echo "tag=$tag  plugin=$ver"
+          if [ "$tag" != "$ver" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match the plugin Version: $ver"
+            exit 1
+          fi
+
+      - name: Build and verify the package
+        run: ./scripts/package.sh
+
+      # The changelog section for THIS version becomes the release body, so the
+      # notes and readme.txt can never drift apart — there is one source.
+      - name: Extract this version's changelog
+        run: |
+          ver="${GITHUB_REF_NAME#v}"
+          {
+            echo "## Broadside Blocks ${ver}"
+            echo
+            awk -v v="= ${ver} =" '
+              $0 == v     { on = 1; next }
+              on && /^= / { exit }
+              on          { print }
+            ' readme.txt
+            echo
+            echo '---'
+            echo
+            echo 'Install with **Plugins → Add New → Upload Plugin**, or let WordPress offer it'
+            echo 'when you activate the [Broadside theme](https://github.com/shadow-software/broadside-theme-for-wordpress).'
+          } > NOTES.md
+          cat NOTES.md
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            build/*.zip \
+            --title "Broadside Blocks ${GITHUB_REF_NAME#v}" \
+            --notes-file NOTES.md
