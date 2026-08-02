@@ -4,7 +4,7 @@ Tags: blocks, editorial, faq, table of contents, schema
 Requires at least: 6.6
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.3.1
+Stable tag: 1.3.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -69,6 +69,16 @@ It builds itself from the `h2` and `h3` headings in the post. A post with no hea
 has no contents to list. Add a heading and it appears.
 
 == Changelog ==
+
+= 1.3.3 =
+* Prefix: all plugin functions, hooks, and usermeta use the `broadside_blocks_` prefix (WordPress.org uniqueness requirement). Theme helpers such as `shadow_digest_get()` are unchanged — they live in the Broadside theme.
+* Filter `shadow_digest_emit_faq_schema` renamed to `broadside_blocks_emit_faq_schema`.
+* Usermeta `shadow_digest_role` migrated to `broadside_blocks_role` (legacy key still read until saved).
+
+= 1.3.2 =
+* FAQPage JSON-LD uses default wp_json_encode() flags so solidus is escaped (no script breakout).
+* Plugin URI points at this plugin's public repository.
+* Removed load_plugin_textdomain(); WordPress.org loads translations automatically.
 
 = 1.3.1 =
 * Moved into its own repository, with its own CI and its own signed release zips.

@@ -21,6 +21,25 @@ declare( strict_types = 1 );
 defined( 'ABSPATH' ) || exit;
 
 /**
+ * Author masthead title (e.g. “Chief Correspondent”).
+ *
+ * Prefers the plugin-prefixed usermeta key; falls back to the legacy
+ * `shadow_digest_role` key so existing Broadside installs keep their titles.
+ *
+ * @since 1.3.3
+ * @param int $user_id User ID.
+ * @return string Role label, or empty string.
+ */
+function broadside_blocks_author_role( int $user_id ): string {
+	$role = (string) get_the_author_meta( 'broadside_blocks_role', $user_id );
+	if ( '' !== $role ) {
+		return $role;
+	}
+
+	return (string) get_the_author_meta( 'shadow_digest_role', $user_id );
+}
+
+/**
  * Register the masthead blocks.
  *
  * These have no editor script of their own — they are configured entirely from
@@ -30,16 +49,16 @@ defined( 'ABSPATH' ) || exit;
  * @since 1.0.0
  * @return void
  */
-function shadow_digest_register_masthead_blocks(): void {
+function broadside_blocks_register_masthead_blocks(): void {
 	$blocks = array(
-		'utility-bar' => 'shadow_digest_render_utility_bar',
-		'nameplate'   => 'shadow_digest_render_nameplate',
-		'folio'       => 'shadow_digest_render_folio',
-		'colophon'    => 'shadow_digest_render_colophon',
-		'newsletter'  => 'shadow_digest_render_newsletter_block',
-		'byline'      => 'shadow_digest_render_byline',
-		'author-bio'  => 'shadow_digest_render_author_bio',
-		'standards'   => 'shadow_digest_render_standards',
+		'utility-bar' => 'broadside_blocks_render_utility_bar',
+		'nameplate'   => 'broadside_blocks_render_nameplate',
+		'folio'       => 'broadside_blocks_render_folio',
+		'colophon'    => 'broadside_blocks_render_colophon',
+		'newsletter'  => 'broadside_blocks_render_newsletter_block',
+		'byline'      => 'broadside_blocks_render_byline',
+		'author-bio'  => 'broadside_blocks_render_author_bio',
+		'standards'   => 'broadside_blocks_render_standards',
 	);
 
 	foreach ( $blocks as $name => $callback ) {
@@ -54,7 +73,7 @@ function shadow_digest_register_masthead_blocks(): void {
 			array(
 
 				/*
-				 * Guarded, like every Broadside block — see shadow_digest_guard().
+				 * Guarded, like every Broadside block — see broadside_blocks_guard().
 				 *
 				 * These callbacks take no arguments: they are configured entirely
 				 * from the Customizer and the current post, not from block
@@ -62,7 +81,7 @@ function shadow_digest_register_masthead_blocks(): void {
 				 * and deliberately passes none of them on.
 				 */
 				'render_callback' => static function () use ( $name, $callback ): string {
-					return shadow_digest_guard(
+					return broadside_blocks_guard(
 						$name,
 						static fn(): string => (string) call_user_func( $callback )
 					);
@@ -71,7 +90,7 @@ function shadow_digest_register_masthead_blocks(): void {
 		);
 	}
 }
-add_action( 'init', 'shadow_digest_register_masthead_blocks' );
+add_action( 'init', 'broadside_blocks_register_masthead_blocks' );
 
 /**
  * Render the utility bar.
@@ -79,7 +98,7 @@ add_action( 'init', 'shadow_digest_register_masthead_blocks' );
  * @since 1.0.0
  * @return string The rendered HTML.
  */
-function shadow_digest_render_utility_bar(): string {
+function broadside_blocks_render_utility_bar(): string {
 	ob_start();
 	shadow_digest_utility_bar();
 	$html = (string) ob_get_clean();
@@ -97,7 +116,7 @@ function shadow_digest_render_utility_bar(): string {
  * @since 1.0.0
  * @return string The rendered HTML.
  */
-function shadow_digest_render_nameplate(): string {
+function broadside_blocks_render_nameplate(): string {
 	$left_title  = (string) shadow_digest_get( 'shadow_digest_ear_left_title' );
 	$left_body   = (string) shadow_digest_get( 'shadow_digest_ear_left_body' );
 	$right_title = (string) shadow_digest_get( 'shadow_digest_ear_right_title' );
@@ -139,7 +158,7 @@ function shadow_digest_render_nameplate(): string {
  * @since 1.0.0
  * @return string The rendered HTML.
  */
-function shadow_digest_render_folio(): string {
+function broadside_blocks_render_folio(): string {
 	ob_start();
 	shadow_digest_folio();
 	$html = (string) ob_get_clean();
@@ -163,7 +182,7 @@ function shadow_digest_render_folio(): string {
  * @since 1.0.0
  * @return string The rendered HTML.
  */
-function shadow_digest_render_colophon(): string {
+function broadside_blocks_render_colophon(): string {
 	$founded = shadow_digest_founded();
 	$year    = (int) wp_date( 'Y' );
 	$host    = (string) wp_parse_url( home_url(), PHP_URL_HOST );
@@ -217,7 +236,7 @@ function shadow_digest_render_colophon(): string {
  * @since 1.0.0
  * @return string The rendered HTML.
  */
-function shadow_digest_render_newsletter_block(): string {
+function broadside_blocks_render_newsletter_block(): string {
 	ob_start();
 	shadow_digest_newsletter();
 	$html = (string) ob_get_clean();
@@ -235,7 +254,7 @@ function shadow_digest_render_newsletter_block(): string {
  * @since 1.0.0
  * @return string The rendered HTML.
  */
-function shadow_digest_render_byline(): string {
+function broadside_blocks_render_byline(): string {
 	$post = get_post();
 
 	if ( ! $post instanceof WP_Post ) {
@@ -244,7 +263,7 @@ function shadow_digest_render_byline(): string {
 
 	$author_id = (int) $post->post_author;
 	$name      = (string) get_the_author_meta( 'display_name', $author_id );
-	$role      = (string) get_the_author_meta( 'shadow_digest_role', $author_id );
+	$role      = broadside_blocks_author_role( $author_id );
 	$url       = (string) get_author_posts_url( $author_id );
 
 	ob_start();
@@ -308,7 +327,7 @@ function shadow_digest_render_byline(): string {
  * @since 1.0.0
  * @return string The rendered HTML.
  */
-function shadow_digest_render_author_bio(): string {
+function broadside_blocks_render_author_bio(): string {
 	$post = get_post();
 
 	if ( ! $post instanceof WP_Post ) {
@@ -356,7 +375,7 @@ function shadow_digest_render_author_bio(): string {
  * @since 1.0.0
  * @return string The rendered HTML.
  */
-function shadow_digest_render_standards(): string {
+function broadside_blocks_render_standards(): string {
 	ob_start();
 	shadow_digest_standards_note();
 
@@ -371,21 +390,21 @@ function shadow_digest_render_standards(): string {
  * @param WP_User $user The user being edited.
  * @return void
  */
-function shadow_digest_user_role_field( WP_User $user ): void {
+function broadside_blocks_user_role_field( WP_User $user ): void {
 	?>
 	<h2><?php esc_html_e( 'Broadside', 'broadside-blocks' ); ?></h2>
 
 	<table class="form-table" role="presentation">
 		<tr>
 			<th>
-				<label for="shadow_digest_role"><?php esc_html_e( 'Masthead title', 'broadside-blocks' ); ?></label>
+				<label for="broadside_blocks_role"><?php esc_html_e( 'Masthead title', 'broadside-blocks' ); ?></label>
 			</th>
 			<td>
 				<input
 					type="text"
-					name="shadow_digest_role"
-					id="shadow_digest_role"
-					value="<?php echo esc_attr( (string) get_the_author_meta( 'shadow_digest_role', $user->ID ) ); ?>"
+					name="broadside_blocks_role"
+					id="broadside_blocks_role"
+					value="<?php echo esc_attr( broadside_blocks_author_role( (int) $user->ID ) ); ?>"
 					class="regular-text"
 				/>
 				<p class="description">
@@ -396,8 +415,8 @@ function shadow_digest_user_role_field( WP_User $user ): void {
 	</table>
 	<?php
 }
-add_action( 'show_user_profile', 'shadow_digest_user_role_field' );
-add_action( 'edit_user_profile', 'shadow_digest_user_role_field' );
+add_action( 'show_user_profile', 'broadside_blocks_user_role_field' );
+add_action( 'edit_user_profile', 'broadside_blocks_user_role_field' );
 
 /**
  * Save the masthead title field.
@@ -406,7 +425,7 @@ add_action( 'edit_user_profile', 'shadow_digest_user_role_field' );
  * @param int $user_id The user being saved.
  * @return void
  */
-function shadow_digest_save_user_role_field( int $user_id ): void {
+function broadside_blocks_save_user_role_field( int $user_id ): void {
 	if ( ! current_user_can( 'edit_user', $user_id ) ) {
 		return;
 	}
@@ -421,15 +440,18 @@ function shadow_digest_save_user_role_field( int $user_id ): void {
 		return;
 	}
 
-	if ( ! isset( $_POST['shadow_digest_role'] ) ) {
+	if ( ! isset( $_POST['broadside_blocks_role'] ) ) {
 		return;
 	}
 
-	update_user_meta(
-		$user_id,
-		'shadow_digest_role',
-		sanitize_text_field( wp_unslash( $_POST['shadow_digest_role'] ) )
-	);
+	$role = sanitize_text_field( wp_unslash( $_POST['broadside_blocks_role'] ) );
+
+	update_user_meta( $user_id, 'broadside_blocks_role', $role );
+
+	// Drop the legacy key once the prefixed value is written.
+	if ( '' !== $role ) {
+		delete_user_meta( $user_id, 'shadow_digest_role' );
+	}
 }
-add_action( 'personal_options_update', 'shadow_digest_save_user_role_field' );
-add_action( 'edit_user_profile_update', 'shadow_digest_save_user_role_field' );
+add_action( 'personal_options_update', 'broadside_blocks_save_user_role_field' );
+add_action( 'edit_user_profile_update', 'broadside_blocks_save_user_role_field' );

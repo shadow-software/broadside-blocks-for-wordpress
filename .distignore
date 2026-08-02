@@ -5,6 +5,7 @@
 /.gitignore
 /.distignore
 /scripts
+/build
 /node_modules
 /vendor
 /composer.json
