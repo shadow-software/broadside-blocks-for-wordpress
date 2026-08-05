@@ -1,19 +1,37 @@
-# Excluded from the installable plugin zip. Dev tooling only — none of it runs on
-# a user's site, and WordPress.org rejects a package that carries build config.
+# Files excluded from the WordPress.org SVN deploy (the installable plugin).
+# The 10up deploy action reads this list; it mirrors .gitattributes export-ignore
+# so the same dev/repo files stay out of both `git archive` ZIPs and SVN.
+
+# Version control / repo meta
 /.git
 /.github
+/.wordpress-org
 /.gitignore
+/.gitattributes
 /.distignore
-/scripts
-/build
-/node_modules
-/vendor
+/.editorconfig
+
+# Documentation (readme.txt is the user-facing one and is NOT ignored)
+/README.md
+
+# Dependency manager / dev tooling
 /composer.json
 /composer.lock
 /package.json
 /package-lock.json
+/vendor
+/node_modules
 /phpcs.xml.dist
-/README.md
+/phpstan.neon
+/phpunit.xml.dist
+/scripts
+
+# Build artifacts
+/build
+/dist
 *.zip
 *.log
+
+# OS / editor cruft
 .DS_Store
+Thumbs.db
