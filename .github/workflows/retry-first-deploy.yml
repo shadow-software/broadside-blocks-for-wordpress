@@ -1,0 +1,79 @@
+name: Retry first wp.org deploy until ACL is live
+
+# The Plugin Directory creates an empty SVN repo on approval, then grants
+# commit access to the submitting account (often "within one hour", sometimes
+# longer). Deploy fails until that ACL lands with:
+#   Access denied: user 'shadowsoftware' cannot modify /broadside-blocks/...
+#
+# This workflow re-runs the 10up deploy every 30 minutes until tags/1.3.3
+# exists on SVN, then becomes a cheap no-op. Safe to delete once the first
+# release is public.
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wporg-first-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Publish 1.3.3 when commit ACL is live
+    runs-on: ubuntu-latest
+    steps:
+      - name: Already on SVN?
+        id: check
+        run: |
+          set -euo pipefail
+          if svn ls "https://plugins.svn.wordpress.org/broadside-blocks/tags/" 2>/dev/null | grep -qx '1.3.3/'; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "tags/1.3.3 already on WordPress.org — nothing to do."
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "tags/1.3.3 not on SVN yet — will deploy if credentials allow."
+          fi
+
+      - name: Guard — require WordPress.org credentials
+        id: guard
+        if: steps.check.outputs.present == 'false'
+        run: |
+          if [ -z "${{ secrets.SVN_USERNAME }}" ] || [ -z "${{ secrets.SVN_PASSWORD }}" ]; then
+            echo "WordPress.org SVN credentials are not configured."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout release tag
+        if: steps.check.outputs.present == 'false' && steps.guard.outputs.ready == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: '1.3.3'
+
+      - name: Deploy plugin + assets to WordPress.org
+        id: deploy
+        if: steps.check.outputs.present == 'false' && steps.guard.outputs.ready == 'true'
+        uses: 10up/action-wordpress-plugin-deploy@stable
+        with:
+          generate-zip: true
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: broadside-blocks
+          ASSETS_DIR: .wordpress-org
+        continue-on-error: true
+
+      - name: Report outcome
+        if: steps.check.outputs.present == 'false' && steps.guard.outputs.ready == 'true'
+        run: |
+          if [ "${{ steps.deploy.outcome }}" = "success" ]; then
+            echo "Deploy succeeded."
+            exit 0
+          fi
+          echo "Deploy failed — most likely commit ACL not granted yet. Next schedule tick will retry."
+          # Don't fail the schedule run permanently; keep retrying.
+          exit 0
