@@ -36,9 +36,12 @@ mkdir -p "$DIR"
 # Copy, then delete what must not ship. A .distignore is only as good as the tool
 # that reads it, and most tools do not.
 rsync -a --exclude='.git' "$ROOT/" "$DIR/"
-rm -rf "$DIR/.github" "$DIR/scripts" "$DIR/build" "$DIR/node_modules" "$DIR/vendor" \
-       "$DIR/README.md" "$DIR/.gitignore" "$DIR/.distignore" "$DIR/composer.json" \
-       "$DIR/composer.lock" "$DIR/phpcs.xml.dist" 2>/dev/null || true
+rm -rf "$DIR/.github" "$DIR/.wordpress-org" "$DIR/scripts" "$DIR/build" \
+       "$DIR/node_modules" "$DIR/vendor" \
+       "$DIR/README.md" "$DIR/.gitignore" "$DIR/.gitattributes" "$DIR/.distignore" \
+       "$DIR/.editorconfig" "$DIR/composer.json" "$DIR/composer.lock" \
+       "$DIR/phpcs.xml.dist" "$DIR/phpstan.neon" "$DIR/phpunit.xml.dist" \
+       "$DIR/package.json" "$DIR/package-lock.json" 2>/dev/null || true
 
 fail=0
 note() { red "   ✗ $*"; fail=1; }
