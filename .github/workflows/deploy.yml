@@ -1,35 +1,135 @@
-name: Deploy to WordPress.org
+name: Deploy
 
-# Publishes a tagged release to the WordPress.org plugin directory
-# (SVN: https://plugins.svn.wordpress.org/broadside-blocks):
-#   * the installable plugin -> SVN trunk + a matching SVN tag (respecting
-#     .distignore / .gitattributes export-ignore), and
-#   * the directory assets (icon, banner) from .wordpress-org/
-#     -> SVN assets/ (the 10up action moves them there automatically).
-#
-# Trigger: push a version tag matching the plugin's Stable tag, e.g.
-#   git tag 1.3.3 && git push origin 1.3.3
-# The tag must equal readme.txt's "Stable tag" and the plugin "Version:" header.
-#
-# Requires two repository secrets (Settings → Secrets and variables → Actions):
-#   SVN_USERNAME  — WordPress.org account username (shadowsoftware)
-#   SVN_PASSWORD  — WordPress.org account / SVN password
-# Until those are set, this workflow simply no-ops on tag pushes.
-#
-# It can also be run by hand from the Actions tab (workflow_dispatch) against a
-# ref that is already tagged, which is handy for a first publish.
 on:
   push:
     tags:
       - '[0-9]+.[0-9]+.[0-9]+'
       - '[0-9]+.[0-9]+.[0-9]+-*'
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
+    branches:
+      - master
+    paths:
+      - 'readme.txt'
+      - '.wordpress-org/**'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to (re)build a GitHub Release for'
+        required: false
+        type: string
+      sync_readme_assets:
+        description: 'Sync wp.org readme and .wordpress-org assets only (no version bump)'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
+concurrency:
+  group: deploy-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: false
+
 jobs:
-  deploy:
+  release:
+    if: >-
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
+      || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
+    name: Build ZIP and publish GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Resolve the version
+        id: version
+        run: |
+          raw="${{ github.event.inputs.tag || github.ref_name }}"
+          version="${raw#v}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "raw=${raw}" >> "$GITHUB_OUTPUT"
+          echo "Building release for version: ${version}"
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      - name: Verify the tag matches the plugin version everywhere
+        run: |
+          set -euo pipefail
+          tag="${{ steps.version.outputs.version }}"
+
+          header="$(grep -oE '^\s*\*\s*Version:\s*\S+' broadside-blocks.php | awk '{print $NF}')"
+          const="$(grep -oE "BROADSIDE_BLOCKS_VERSION',\s*'[^']+'" broadside-blocks.php | grep -oE "'[0-9][^']*'" | tr -d "'")"
+          stable="$(grep -oE '^Stable tag:\s*\S+' readme.txt | awk '{print $NF}')"
+
+          echo "tag=${tag}  header=${header}  const=${const}  stable_tag=${stable}"
+
+          fail=0
+          [ "$header" = "$tag" ] || { echo "::error::Plugin header Version ($header) != tag ($tag)"; fail=1; }
+          [ "$const"  = "$tag" ] || { echo "::error::BROADSIDE_BLOCKS_VERSION ($const) != tag ($tag)"; fail=1; }
+          [ "$stable" = "$tag" ] || { echo "::error::readme.txt Stable tag ($stable) != tag ($tag)"; fail=1; }
+
+          if [ "$fail" -ne 0 ]; then
+            echo "::error::Version mismatch. Bump every place to ${tag} before tagging."
+            exit 1
+          fi
+
+      - name: Build and verify the package
+        run: ./scripts/package.sh
+
+      - name: Extract this version's changelog
+        run: |
+          ver="${{ steps.version.outputs.version }}"
+          {
+            echo "## Broadside Blocks ${ver}"
+            echo
+            awk -v v="= ${ver} =" '
+              $0 == v     { on = 1; next }
+              on && /^= / { exit }
+              on          { print }
+            ' readme.txt
+            echo
+            echo '---'
+            echo
+            echo 'Install with **Plugins → Add New → Upload Plugin**, or let WordPress offer it'
+            echo 'when you activate the [Broadside theme](https://github.com/shadow-software/broadside-theme-for-wordpress).'
+            echo
+            echo "**Also on WordPress.org:** https://wordpress.org/plugins/broadside-blocks/"
+          } > NOTES.md
+          cat NOTES.md
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ver="${{ steps.version.outputs.version }}"
+          raw="${{ steps.version.outputs.raw }}"
+          # Prefer the pushed tag name; if workflow_dispatch passed a plain version, use it.
+          tag_name="$raw"
+          if gh release view "$tag_name" >/dev/null 2>&1; then
+            echo "Release $tag_name already exists — replacing assets."
+            gh release upload "$tag_name" build/*.zip --clobber
+          else
+            gh release create "$tag_name" \
+              build/*.zip \
+              --title "Broadside Blocks ${ver}" \
+              --notes-file NOTES.md
+          fi
+
+  wporg-deploy:
+    if: >-
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
+      || (github.event_name == 'workflow_dispatch'
+          && inputs.tag == ''
+          && inputs.sync_readme_assets != true)
     name: Publish to WordPress.org
     runs-on: ubuntu-latest
     steps:
@@ -64,3 +164,32 @@ jobs:
         with:
           name: broadside-blocks-${{ github.ref_name }}
           path: ${{ steps.deploy.outputs.zip-path }}
+
+  wporg-assets:
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/master')
+      || (github.event_name == 'workflow_dispatch' && inputs.sync_readme_assets == true)
+    name: Sync readme + assets to WordPress.org
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Guard — require WordPress.org credentials
+        id: guard
+        run: |
+          if [ -z "${{ secrets.SVN_USERNAME }}" ] || [ -z "${{ secrets.SVN_PASSWORD }}" ]; then
+            echo "WordPress.org SVN credentials are not configured; skipping."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update readme + assets on WordPress.org
+        if: steps.guard.outputs.ready == 'true'
+        uses: 10up/action-wordpress-plugin-asset-update@stable
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: broadside-blocks
+          ASSETS_DIR: .wordpress-org
