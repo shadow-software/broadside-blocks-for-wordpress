@@ -2,7 +2,7 @@
 
 Directory assets for https://wordpress.org/plugins/broadside-blocks/ — **not**
 part of the installable plugin. Deployed to SVN `assets/` by
-`.github/workflows/deploy.yml` / `assets.yml`.
+`.github/workflows/deploy.yml` (release + assets jobs).
 
 | File | Size |
 | ---- | ---- |
