@@ -4,7 +4,7 @@ Tags: blocks, editorial, faq, table of contents, schema
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.5
-Stable tag: 1.4.4
+Stable tag: 1.4.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -76,6 +76,9 @@ It builds itself from the `h2` and `h3` headings in the post. A post with no hea
 has no contents to list. Add a heading and it appears.
 
 == Changelog ==
+
+= 1.4.5 =
+* The colophon prints the podcast directory link, the YouTube link, and the publisher's legal name again. 1.4.4 had dropped them while restoring the editor registration.
 
 = 1.4.4 =
 * The site editor can open Broadside templates. Every block is registered in the editor, from one script, so byline, author bio, standards, related stories, the newsletter, and the rest no longer show as unsupported.

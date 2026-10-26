@@ -105,6 +105,11 @@ guard_check(
 	'secondary queries do not suppress Polylang'
 );
 
+$masthead = (string) file_get_contents( $root . '/inc-blocks-masthead.php' );
+guard_check( str_contains( $masthead, 'digest-footer__podcast-link' ), 'the colophon prints the podcast directory link' );
+guard_check( str_contains( $masthead, 'digest-footer__youtube-link' ), 'the colophon prints the YouTube link' );
+guard_check( str_contains( $masthead, 'shadow_digest_publisher_legal' ), 'the colophon prints the publisher legal line' );
+
 echo "\n── versions agree\n";
 
 preg_match( '/^\s*\*\s*Version:\s*(\S+)/m', $bootstrap, $header );
