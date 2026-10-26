@@ -96,6 +96,9 @@ jobs:
       - name: JavaScript syntax
         run: node --check assets/js/blocks.js
 
+      - name: Editor registration cannot regress
+        run: php scripts/guard-editor-registration.php
+
   package:
     name: The plugin package is shippable
     runs-on: ubuntu-latest

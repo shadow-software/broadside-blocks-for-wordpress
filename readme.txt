@@ -4,7 +4,7 @@ Tags: blocks, editorial, faq, table of contents, schema
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.5
-Stable tag: 1.3.3
+Stable tag: 1.4.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -63,12 +63,24 @@ WordPress 6.5+ will offer this plugin alongside it.
 The blocks need the Broadside theme. Under any other theme they render nothing, on
 purpose, rather than fataling. An admin notice will tell you so.
 
+= The site editor says a Broadside block is not supported. =
+
+The blocks render in PHP, and the editor has to be told about each one. Update to
+the current release. A template that still shows the warning is running a build
+where the editor script was loaded once per block and never registered the
+masthead blocks.
+
 = The table of contents is empty. =
 
 It builds itself from the `h2` and `h3` headings in the post. A post with no headings
 has no contents to list. Add a heading and it appears.
 
 == Changelog ==
+
+= 1.4.4 =
+* The site editor can open Broadside templates. Every block is registered in the editor, from one script, so byline, author bio, standards, related stories, the newsletter, and the rest no longer show as unsupported.
+* The front page's lead-column promo block is registered again.
+* The section grid can be limited to chosen categories, in order. Leave the list empty to keep ranking sections by readership. Queries respect the current Polylang language.
 
 = 1.3.3 =
 * Prefix: all plugin functions, hooks, and usermeta use the `broadside_blocks_` prefix (WordPress.org uniqueness requirement). Theme helpers such as `shadow_digest_get()` are unchanged — they live in the Broadside theme.

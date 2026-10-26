@@ -55,6 +55,7 @@ function broadside_blocks_register_masthead_blocks(): void {
 		'nameplate'   => 'broadside_blocks_render_nameplate',
 		'folio'       => 'broadside_blocks_render_folio',
 		'colophon'    => 'broadside_blocks_render_colophon',
+		'lead-promo'  => 'broadside_blocks_render_lead_promo',
 		'newsletter'  => 'broadside_blocks_render_newsletter_block',
 		'byline'      => 'broadside_blocks_render_byline',
 		'author-bio'  => 'broadside_blocks_render_author_bio',
@@ -117,8 +118,14 @@ function broadside_blocks_render_utility_bar(): string {
  * @return string The rendered HTML.
  */
 function broadside_blocks_render_nameplate(): string {
-	$left_title  = (string) shadow_digest_get( 'shadow_digest_ear_left_title' );
-	$left_body   = (string) shadow_digest_get( 'shadow_digest_ear_left_body' );
+	if ( function_exists( 'shadow_digest_ear_left_content' ) ) {
+		$left       = shadow_digest_ear_left_content();
+		$left_title = (string) ( $left['title'] ?? '' );
+		$left_body  = (string) ( $left['body'] ?? '' );
+	} else {
+		$left_title = (string) shadow_digest_get( 'shadow_digest_ear_left_title' );
+		$left_body  = (string) shadow_digest_get( 'shadow_digest_ear_left_body' );
+	}
 	$right_title = (string) shadow_digest_get( 'shadow_digest_ear_right_title' );
 	$right_body  = (string) shadow_digest_get( 'shadow_digest_ear_right_body' );
 
@@ -228,6 +235,35 @@ function broadside_blocks_render_colophon(): string {
 	<?php
 
 	return (string) ob_get_clean();
+}
+
+/**
+ * Render the optional homepage lead-column promo.
+ *
+ * The front-page template references this block. Without the registration the
+ * site editor reports the block as unsupported.
+ *
+ * @since 1.4.4
+ * @return string The rendered HTML.
+ */
+function broadside_blocks_render_lead_promo(): string {
+	if ( ! function_exists( 'shadow_digest_lead_ad' ) ) {
+		return '';
+	}
+
+	ob_start();
+	shadow_digest_lead_ad();
+	$html = trim( (string) ob_get_clean() );
+
+	if ( '' === $html ) {
+		return '';
+	}
+
+	return sprintf(
+		'<div %1$s>%2$s</div>',
+		get_block_wrapper_attributes( array( 'class' => 'digest-lead-ad-wrap' ) ),
+		$html // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- shadow_digest_lead_ad() escapes everything it prints.
+	);
 }
 
 /**

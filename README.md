@@ -61,7 +61,16 @@ to get it back. The rule exists to protect the user from precisely that.
 | **Disclosure Table** | A comparison table whose partner links are *always* `rel="sponsored nofollow"`, and which refuses to render without a disclosure line. |
 
 **Masthead furniture** — nameplate, folio rule, utility bar, colophon, byline, author
-bio, editorial standards, newsletter panel, section grid, related stories, lead well.
+bio, editorial standards, newsletter panel, section grid, related stories, lead well,
+lead-column promo.
+
+The section grid ranks categories by what people read. Tick a list in the block
+settings to print those sections, in that order, instead. On a multilingual site
+the queries stay in the current language.
+
+The editor script is loaded once. Every block, including the ones that only
+render in PHP, is registered there — otherwise the Site Editor reports that the
+site does not support them.
 
 ## Under another theme
 

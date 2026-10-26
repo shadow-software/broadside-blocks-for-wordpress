@@ -810,12 +810,14 @@ function broadside_blocks_render_related( array $attributes ): string {
 	$count = isset( $attributes['count'] ) ? absint( $attributes['count'] ) : 3;
 	$count = max( 1, min( 6, $count ) );
 
-	$args = array(
-		'numberposts'         => $count,
-		'post_status'         => 'publish',
-		'post__not_in'        => array( $current->ID ),
-		'ignore_sticky_posts' => true,
-		'no_found_rows'       => true,
+	$args = broadside_blocks_query_args(
+		array(
+			'numberposts'         => $count,
+			'post_status'         => 'publish',
+			'post__not_in'        => array( $current->ID ),
+			'ignore_sticky_posts' => true,
+			'no_found_rows'       => true,
+		)
 	);
 
 	// Prefer stories from the same section — a reader who just finished a
@@ -890,6 +892,57 @@ function broadside_blocks_render_related( array $attributes ): string {
 }
 
 /**
+ * Query arguments that Polylang is allowed to see.
+ *
+ * get_posts() sets suppress_filters by default, which strips Polylang's language
+ * clause. A Turkish homepage would then list English stories in the section index.
+ *
+ * @since 1.4.4
+ * @param array<string, mixed> $args Query arguments.
+ * @return array<string, mixed>
+ */
+function broadside_blocks_query_args( array $args ): array {
+	$args['suppress_filters'] = false;
+
+	if ( function_exists( 'pll_current_language' ) ) {
+		$lang = pll_current_language();
+
+		if ( is_string( $lang ) && '' !== $lang ) {
+			$args['lang'] = $lang;
+		}
+	}
+
+	return $args;
+}
+
+/**
+ * Categories the editor picked for the section grid, in that order.
+ *
+ * An empty attribute means "rank them", which is the historical behaviour.
+ *
+ * @since 1.4.4
+ * @param array<string, mixed> $attributes Block attributes.
+ * @return array<int, WP_Term>
+ */
+function broadside_blocks_selected_categories( array $attributes ): array {
+	$ids = isset( $attributes['categories'] ) && is_array( $attributes['categories'] )
+		? $attributes['categories']
+		: array();
+
+	$terms = array();
+
+	foreach ( $ids as $id ) {
+		$term = get_category( absint( $id ) );
+
+		if ( $term instanceof WP_Term && 'category' === $term->taxonomy ) {
+			$terms[] = $term;
+		}
+	}
+
+	return $terms;
+}
+
+/**
  * The section grid — "Inside This Week's Edition".
  *
  * One column per category, each listing that category's most recent headlines.
@@ -908,16 +961,22 @@ function broadside_blocks_render_section_grid( array $attributes ): string {
 	$columns    = max( 1, min( 12, $columns ) );
 	$per_column = max( 1, min( 10, $per_column ) );
 
-	// Prefer the theme helper when present (view-ranked); fall back to count.
-	if ( function_exists( 'shadow_digest_categories_by_views' ) ) {
+	// An explicit list wins. Otherwise prefer the theme helper (view-ranked).
+	$picked = broadside_blocks_selected_categories( $attributes );
+
+	if ( ! empty( $picked ) ) {
+		$categories = $picked;
+	} elseif ( function_exists( 'shadow_digest_categories_by_views' ) ) {
 		$categories = shadow_digest_categories_by_views( $columns );
 	} else {
 		$categories = get_categories(
-			array(
-				'orderby'    => 'count',
-				'order'      => 'DESC',
-				'number'     => $columns,
-				'hide_empty' => true,
+			broadside_blocks_query_args(
+				array(
+					'orderby'    => 'count',
+					'order'      => 'DESC',
+					'number'     => $columns,
+					'hide_empty' => true,
+				)
 			)
 		);
 	}
@@ -930,12 +989,14 @@ function broadside_blocks_render_section_grid( array $attributes ): string {
 
 	foreach ( $categories as $category ) {
 		$posts = get_posts(
-			array(
-				'category'            => $category->term_id,
-				'numberposts'         => $per_column,
-				'post_status'         => 'publish',
-				'ignore_sticky_posts' => true,
-				'no_found_rows'       => true,
+			broadside_blocks_query_args(
+				array(
+					'category'            => $category->term_id,
+					'numberposts'         => $per_column,
+					'post_status'         => 'publish',
+					'ignore_sticky_posts' => true,
+					'no_found_rows'       => true,
+				)
 			)
 		);
 

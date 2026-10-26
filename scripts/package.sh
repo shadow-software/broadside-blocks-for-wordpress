@@ -85,6 +85,25 @@ fi
 grep -q 'register_block_type' "$DIR/inc-blocks.php" && okay "register_block_type() is HERE, where it belongs" \
 	|| note "the plugin does not register any block — that is its entire job"
 
+if find "$DIR/blocks" -name block.json -print0 | xargs -0 grep -l 'editorScript' >/dev/null 2>&1; then
+	note "a block.json sets editorScript — blocks.js must be enqueued once, not once per block"
+else
+	okay "no per-block editorScript"
+fi
+
+v_asset=$(grep -oP "'version'\s*=>\s*'\K[^']+" "$DIR/assets/js/blocks.asset.php")
+if [ "$VERSION" = "$v_asset" ]; then
+	okay "blocks.asset.php = $VERSION"
+else
+	note "blocks.asset.php version is ${v_asset:-missing}, expected $VERSION"
+fi
+
+if php "$ROOT/scripts/guard-editor-registration.php" >/dev/null; then
+	okay "editor registration guard"
+else
+	note "editor registration guard failed"
+fi
+
 echo
 if [ "$fail" -ne 0 ]; then
 	red "════ NOT SHIPPABLE — fix the above."
